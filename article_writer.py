@@ -103,8 +103,7 @@ def write_article(topic: dict, gemini_api_key: str) -> dict | None:
 
         # Clean markdown fences if present
         response_text = re.sub(r'^```json\s*', '', response_text)
-        response_text = re.sub(r'^
-```\s*', '', response_text)
+        response_text = re.sub(r'^```\s*', '', response_text)
         response_text = re.sub(r'\s*```$', '', response_text)
         response_text = response_text.strip()
 
