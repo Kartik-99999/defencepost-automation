@@ -18,6 +18,7 @@ log = logging.getLogger(__name__)
 # ── SEARCH QUERIES ─────────────────────────────────────────────
 # Updated for 2026 recency to avoid 2024 historical archives
 DEFENCE_QUERIES = [
+    # Existing General Queries
     "India defence military news latest",
     "Indian Army Navy Air Force 2026",
     "India Pakistan border update today",
@@ -28,6 +29,64 @@ DEFENCE_QUERIES = [
     "Indian Ocean naval security",
     "India defence manufacturing update",
     "Ministry of Defence India press release",
+    
+    # Weapons, UAVs & Equipment
+    "Arjun Mk 1A main battle tank latest",
+    "T-90S Bhishma tank deployment",
+    "Zorawar light tank induction",
+    "BMP-2 Sarath infantry combat vehicle",
+    "Kalyani M4 armoured vehicle",
+    "ATAGS artillery gun system",
+    "HAL Prachand attack helicopter",
+    "HAL Rudra utility helicopter",
+    "Apache AH-64 Indian Air Force",
+    "LCA Tejas Mk1A fighter jet",
+    "Prithvi ballistic missile test",
+    "Drishti 10 Starliner UAV drone",
+    "Tapas BH-201 UAV update",
+    "Indian military UAV upgradation program",
+    "Agni-V MIRV nuclear missile",
+
+    # Operations & Exercises
+    "Operation Sindoor anniversary",
+    "Exercise Malabar naval drill",
+    "Exercise Yudh Abhyas Indian Army",
+    "Exercise Milan multilateral naval",
+    "Exercise Surya Kiran Indo-Nepal",
+    "Operation Ganga evacuation",
+    "Operation Kaveri rescue",
+    "Exercise Shakti Indo-French",
+    "Exercise Lamitiye India Seychelles",
+    "Exercise Mitra Shakti India Sri Lanka",
+    "Operation Dost disaster relief",
+    "Operation Megh Rahat HADR",
+
+    # Regiments
+    "Parachute Regiment Para SF operations",
+    "Rajputana Rifles Indian Army",
+    "Sikh Regiment infantry",
+    "Gorkha Rifles deployment",
+    "Madras Regiment military",
+    "Maratha Light Infantry",
+    "Jat Regiment Indian Army",
+    "Dogra Regiment border",
+    "Kumaon Regiment troops",
+    "Garhwal Rifles operations",
+    "Ladakh Scouts LAC deployment",
+    "Assam Regiment Northeast",
+
+    # Warships & Submarines
+    "INS Vikrant aircraft carrier",
+    "INS Vikramaditya naval fleet",
+    "INS Arihant nuclear submarine",
+    "INS Arighaat ballistic missile submarine",
+    "INS Kalvari Scorpene class",
+    "INS Visakhapatnam stealth destroyer",
+    "INS Kolkata guided-missile destroyer",
+    "INS Nilgiri stealth frigate",
+    "INS Sahyadri stealth frigate F49",
+    "INS Ranjit destroyer D53",
+    "INS Saryu patrol vessel P54"
 ]
 
 # ── SOURCE 1: GDELT PROJECT ────────────────────────────────────
