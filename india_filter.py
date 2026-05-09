@@ -69,7 +69,8 @@ def prioritise_for_india(articles: list, gemini_api_key: str, n: int = 1) -> lis
 
     # Configure Gemini
     genai.configure(api_key=gemini_api_key)
-    model = genai.GenerativeModel('gemini-1.5-flash')  # Free tier model
+    # Updated to gemini-2.5-flash
+    model = genai.GenerativeModel('gemini-2.5-flash')
 
     # Format headlines for prompt
     headlines_text = ""
@@ -104,7 +105,8 @@ def prioritise_for_india(articles: list, gemini_api_key: str, n: int = 1) -> lis
 
         # Clean up any markdown code fences
         response_text = re.sub(r'^```json\s*', '', response_text)
-        response_text = re.sub(r'^```\s*', '', response_text)
+        response_text = re.sub(r'^
+```\s*', '', response_text)
         response_text = re.sub(r'\s*```$', '', response_text)
         response_text = response_text.strip()
 
