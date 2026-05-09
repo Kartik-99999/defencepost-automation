@@ -105,8 +105,7 @@ def prioritise_for_india(articles: list, gemini_api_key: str, n: int = 1) -> lis
 
         # Clean up any markdown code fences
         response_text = re.sub(r'^```json\s*', '', response_text)
-        response_text = re.sub(r'^
-```\s*', '', response_text)
+        response_text = re.sub(r'^```\s*', '', response_text)
         response_text = re.sub(r'\s*```$', '', response_text)
         response_text = response_text.strip()
 
