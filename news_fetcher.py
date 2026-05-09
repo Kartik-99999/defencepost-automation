@@ -1,9 +1,10 @@
 """
 news_fetcher.py
 Fetches latest defence & geopolitics news using FREE sources:
-1. GDELT Project API (completely free, no key needed)
-2. Google News RSS (completely free, no key needed)
-3. NewsAPI.org (free tier, 100 req/day)
+1. GDELT Project API (Last 24h filter)
+2. Google News RSS (Last 24h filter)
+3. NewsAPI.org (Free tier)
+4. Reddit (Trending defence posts)
 """
 
 import requests
@@ -15,42 +16,81 @@ from urllib.parse import quote
 log = logging.getLogger(__name__)
 
 # ── SEARCH QUERIES ─────────────────────────────────────────────
-# REMOVED: Specific old operation names that trigger historical results
-# ADDED: "2026" and more dynamic triggers
+# Updated for 2026 recency to avoid 2024 historical archives
 DEFENCE_QUERIES = [
-    "India defence military news",
-    "Indian Army Navy Air Force latest",
-    "India Pakistan border update",
-    "India China LAC border tension",
-    "DRDO missile test 2026",
+    "India defence military news latest",
+    "Indian Army Navy Air Force 2026",
+    "India Pakistan border update today",
+    "India China LAC border news",
+    "DRDO missile test latest",
     "India geopolitics strategic analysis",
-    "Indo Pacific QUAD summit",
+    "Indo Pacific QUAD news 2026",
     "Indian Ocean naval security",
-    "India defence manufacturing",
+    "India defence manufacturing update",
     "Ministry of Defence India press release",
 ]
 
 # ── SOURCE 1: GDELT PROJECT ────────────────────────────────────
-# (Your GDELT code is already good because it uses 'timespan': '1d')
+GDELT_API = "https://api.gdeltproject.org/api/v2/doc/doc"
 
-# ── SOURCE 2: GOOGLE NEWS RSS (THE FIX IS HERE) ────────────────
+def fetch_gdelt_news(max_results: int = 20) -> list:
+    """
+    Fetch defence/geopolitics news from GDELT Project
+    GDELT monitors every major news source on the internet
+    """
+    articles = []
+    for query in DEFENCE_QUERIES[:5]:
+        try:
+            params = {
+                'query':      f'{query} sourcelang:english',
+                'mode':       'artlist',
+                'maxrecords': '10',
+                'format':     'json',
+                'sort':       'date',
+                'timespan':   '1d',  # STRICTLY last 24 hours
+            }
 
+            response = requests.get(GDELT_API, params=params, timeout=15)
+
+            if response.status_code == 200:
+                data = response.json()
+                items = data.get('articles', [])
+                log.info(f"GDELT '{query}' → {len(items)} articles")
+
+                for item in items:
+                    title = item.get('title', '').strip()
+                    if title and len(title) > 20:
+                        articles.append({
+                            'title': title,
+                            'description': title,
+                            'url': item.get('url', ''),
+                            'source': item.get('domain', ''),
+                            'published': item.get('seendate', ''),
+                            'origin': 'GDELT',
+                            'keywords': query.split(),
+                        })
+        except Exception as e:
+            log.error(f"GDELT error for '{query}': {e}")
+    return articles
+
+# ── SOURCE 2: GOOGLE NEWS RSS ──────────────────────────────────
 GOOGLE_NEWS_RSS = "https://news.google.com/rss/search"
 
 def fetch_google_news_rss(max_results: int = 30) -> list:
+    """
+    Fetch news from Google News RSS feeds
+    Optimized for 2026 recency
+    """
     articles = []
-
     for query in DEFENCE_QUERIES[:8]:
         try:
-            # THE FIX: Added 'when:1d' to the query string to force last 24 hours
-            # Also added 'after:2026-05-01' as a secondary safety net
+            # THE FIX: 'when:1d' forces results from the last 24 hours only
             time_filtered_query = f"{query} when:1d"
-            
             url = f"{GOOGLE_NEWS_RSS}?q={quote(time_filtered_query)}&hl=en-IN&gl=IN&ceid=IN:en"
 
             response = requests.get(
-                url,
-                timeout=15,
+                url, 
+                timeout=15, 
                 headers={'User-Agent': 'Mozilla/5.0 (compatible; DefencePostBot/1.0)'}
             )
 
@@ -66,8 +106,8 @@ def fetch_google_news_rss(max_results: int = 30) -> list:
                     pub_el = item.find('pubDate')
                     pub_date_str = pub_el.text if pub_el is not None else ''
                     
-                    # EXTRA SAFETY: Double check the year in the RSS date string
-                    if "2024" in pub_date_str or "2025" in pub_date_str:
+                    # EXTRA SAFETY: Skip if the year is 2024 or 2025
+                    if any(year in pub_date_str for year in ["2024", "2025"]):
                         continue 
 
                     title_el = item.find('title')
@@ -88,291 +128,93 @@ def fetch_google_news_rss(max_results: int = 30) -> list:
                             'origin': 'Google News',
                             'keywords': query.split(),
                         })
-
         except Exception as e:
             log.error(f"Google News error for '{query}': {e}")
-            continue
-
     return articles
-
-
-# ── SOURCE 2: GOOGLE NEWS RSS ──────────────────────────────────
-
-GOOGLE_NEWS_RSS = "https://news.google.com/rss/search"
-
-def fetch_google_news_rss(max_results: int = 30) -> list:
-    """
-    Fetch news from Google News RSS feeds
-    Completely free — no API key needed
-    """
-    articles = []
-
-    for query in DEFENCE_QUERIES[:6]:
-        try:
-            params = {
-                'q':  query,
-                'hl': 'en-IN',
-                'gl': 'IN',
-                'ceid': 'IN:en'
-            }
-
-            url = f"{GOOGLE_NEWS_RSS}?q={quote(query)}&hl=en-IN&gl=IN&ceid=IN:en"
-
-            response = requests.get(
-                url,
-                timeout=15,
-                headers={
-                    'User-Agent': 'Mozilla/5.0 (compatible; DefencePostBot/1.0)'
-                }
-            )
-
-            if response.status_code == 200:
-                # Parse RSS XML
-                root = ET.fromstring(response.content)
-                channel = root.find('channel')
-
-                if channel is None:
-                    continue
-
-                items = channel.findall('item')
-                log.info(f"Google News '{query}' → {len(items)} articles")
-
-                for item in items[:5]:
-                    title_el = item.find('title')
-                    desc_el = item.find('description')
-                    link_el = item.find('link')
-                    pub_el = item.find('pubDate')
-                    source_el = item.find('source')
-
-                    title = title_el.text if title_el is not None else ''
-                    # Clean Google News title (removes source suffix)
-                    if title and ' - ' in title:
-                        title = title.rsplit(' - ', 1)[0].strip()
-
-                    if title and len(title) > 20:
-                        articles.append({
-                            'title':       title,
-                            'description': (desc_el.text or title) if desc_el is not None else title,
-                            'url':         link_el.text if link_el is not None else '',
-                            'source':      source_el.text if source_el is not None else 'Google News',
-                            'published':   pub_el.text if pub_el is not None else '',
-                            'origin':      'Google News',
-                            'keywords':    query.split(),
-                        })
-
-        except ET.ParseError as e:
-            log.error(f"RSS parse error for '{query}': {e}")
-            continue
-        except Exception as e:
-            log.error(f"Google News error for '{query}': {e}")
-            continue
-
-    log.info(f"Google News RSS total: {len(articles)} articles")
-    return articles
-
 
 # ── SOURCE 3: NEWSAPI.ORG ──────────────────────────────────────
-
 NEWSAPI_URL = "https://newsapi.org/v2/everything"
 
 def fetch_newsapi(api_key: str, max_results: int = 20) -> list:
-    """
-    Fetch news from NewsAPI.org (free tier: 100 req/day)
-    """
-    if not api_key:
-        log.warning("No NewsAPI key provided — skipping")
-        return []
-
+    if not api_key: return []
     articles = []
     yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime('%Y-%m-%d')
 
-    queries = [
-        "India defence OR India military OR Indian Army",
-        "India Pakistan OR India China border OR LAC",
-        "DRDO OR BrahMos OR Tejas OR Indian Navy",
-        "Indo-Pacific OR QUAD OR India geopolitics",
-    ]
-
-    for query in queries[:3]:  # Limit to 3 to preserve free tier quota
+    queries = ["India defence", "India military", "DRDO latest"]
+    for query in queries:
         try:
             params = {
-                'q':          query,
-                'from':       yesterday,
-                'sortBy':     'publishedAt',
-                'language':   'en',
-                'pageSize':   '10',
-                'apiKey':     api_key,
+                'q': query,
+                'from': yesterday,
+                'sortBy': 'publishedAt',
+                'apiKey': api_key,
+                'language': 'en',
+                'pageSize': '10'
             }
-
-            response = requests.get(
-                NEWSAPI_URL,
-                params=params,
-                timeout=15
-            )
-
+            response = requests.get(NEWSAPI_URL, params=params, timeout=15)
             if response.status_code == 200:
-                data = response.json()
-                items = data.get('articles', [])
-                log.info(f"NewsAPI '{query[:30]}' → {len(items)} articles")
-
+                items = response.json().get('articles', [])
                 for item in items:
-                    title = (item.get('title') or '').strip()
-                    if not title or '[Removed]' in title:
-                        continue
-
                     articles.append({
-                        'title':       title,
-                        'description': item.get('description') or title,
-                        'url':         item.get('url', ''),
-                        'source':      item.get('source', {}).get('name', 'Unknown'),
-                        'published':   item.get('publishedAt', ''),
-                        'origin':      'NewsAPI',
-                        'keywords':    query.split()[:4],
+                        'title': item.get('title', ''),
+                        'url': item.get('url', ''),
+                        'source': item.get('source', {}).get('name', 'NewsAPI'),
+                        'published': item.get('publishedAt', ''),
+                        'origin': 'NewsAPI',
                     })
-
-            elif response.status_code == 426:
-                log.warning("NewsAPI free tier limit reached")
-                break
-            else:
-                log.warning(f"NewsAPI returned {response.status_code}")
-
         except Exception as e:
             log.error(f"NewsAPI error: {e}")
-            continue
-
-    log.info(f"NewsAPI total: {len(articles)} articles")
     return articles
-
 
 # ── SOURCE 4: REDDIT ──────────────────────────────────────────
+REDDIT_SUBREDDITS = ['indiandefence', 'geopolitics', 'IndiaSpeaks']
 
-REDDIT_SUBREDDITS = [
-    'IndiaSpeaks',
-    'indiandefence',
-    'geopolitics',
-    'india',
-    'worldnews',
-]
-
-def fetch_reddit_news(max_results: int = 20) -> list:
-    """
-    Fetch trending defence posts from Reddit
-    Completely free — no API key needed for public feeds
-    """
+def fetch_reddit_news() -> list:
     articles = []
-
-    headers = {
-        'User-Agent': 'DefencePostBot/1.0 (defencepost.live)'
-    }
-
-    for subreddit in REDDIT_SUBREDDITS[:3]:
+    headers = {'User-Agent': 'DefencePostBot/1.0'}
+    for subreddit in REDDIT_SUBREDDITS:
         try:
-            url = f"https://www.reddit.com/r/{subreddit}/hot.json?limit=15"
+            url = f"https://www.reddit.com/r/{subreddit}/hot.json?limit=10"
             response = requests.get(url, headers=headers, timeout=15)
-
             if response.status_code == 200:
-                data = response.json()
-                posts = data.get('data', {}).get('children', [])
-                log.info(f"Reddit r/{subreddit} → {len(posts)} posts")
-
-                defence_keywords = [
-                    'india', 'defence', 'military', 'army', 'navy', 'air force',
-                    'pakistan', 'china', 'missile', 'drdo', 'war', 'geopolitics',
-                    'nuclear', 'border', 'lac', 'kashmir', 'operation', 'iac'
-                ]
-
+                posts = response.json().get('data', {}).get('children', [])
                 for post in posts:
-                    post_data = post.get('data', {})
-                    title = post_data.get('title', '').strip()
-                    score = post_data.get('score', 0)
-                    url_post = post_data.get('url', '')
-                    selftext = post_data.get('selftext', '')
-
-                    # Only include defence-relevant posts
-                    title_lower = title.lower()
-                    if not any(kw in title_lower for kw in defence_keywords):
-                        continue
-
-                    # Only include popular posts
-                    if score < 50:
-                        continue
-
-                    articles.append({
-                        'title':       title,
-                        'description': selftext[:300] if selftext else title,
-                        'url':         url_post,
-                        'source':      f"Reddit r/{subreddit}",
-                        'published':   '',
-                        'origin':      'Reddit',
-                        'keywords':    [kw for kw in defence_keywords if kw in title_lower][:5],
-                        'engagement':  score,
-                    })
-
+                    data = post.get('data', {})
+                    if data.get('score', 0) > 50:
+                        articles.append({
+                            'title': data.get('title', ''),
+                            'url': data.get('url', ''),
+                            'source': f"r/{subreddit}",
+                            'published': '',
+                            'origin': 'Reddit',
+                        })
         except Exception as e:
-            log.error(f"Reddit error for r/{subreddit}: {e}")
-            continue
-
-    log.info(f"Reddit total: {len(articles)} articles")
+            log.error(f"Reddit error: {e}")
     return articles
 
-
 # ── MAIN FETCHER ───────────────────────────────────────────────
-
 def fetch_all_news(newsapi_key: str = '') -> list:
-    """
-    Fetch news from ALL free sources and combine
-    Returns deduplicated list of articles sorted by relevance
-    """
     log.info("Fetching news from all free sources...")
-
     all_articles = []
-
-    # Source 1: GDELT (best for geopolitics)
-    log.info("\n[SOURCE 1] GDELT Project...")
-    gdelt = fetch_gdelt_news()
-    all_articles.extend(gdelt)
-
-    # Source 2: Google News RSS (best coverage)
-    log.info("\n[SOURCE 2] Google News RSS...")
-    google = fetch_google_news_rss()
-    all_articles.extend(google)
-
-    # Source 3: NewsAPI (structured data)
+    
+    # Run all sources
+    all_articles.extend(fetch_gdelt_news())
+    all_articles.extend(fetch_google_news_rss())
     if newsapi_key:
-        log.info("\n[SOURCE 3] NewsAPI.org...")
-        newsapi = fetch_newsapi(newsapi_key)
-        all_articles.extend(newsapi)
+        all_articles.extend(fetch_newsapi(newsapi_key))
+    all_articles.extend(fetch_reddit_news())
 
-    # Source 4: Reddit (trending topics)
-    log.info("\n[SOURCE 4] Reddit...")
-    reddit = fetch_reddit_news()
-    all_articles.extend(reddit)
-
-    # Deduplicate by title similarity
     deduplicated = deduplicate(all_articles)
-
-    log.info(f"\nTotal articles before dedup: {len(all_articles)}")
-    log.info(f"Total articles after dedup:  {len(deduplicated)}")
-
+    log.info(f"Total articles after dedup: {len(deduplicated)}")
     return deduplicated
 
-
 def deduplicate(articles: list) -> list:
-    """
-    Remove duplicate articles based on title similarity
-    """
     seen_titles = set()
     unique = []
-
     for article in articles:
         title = article.get('title', '').lower().strip()
-
-        # Create a simplified key (first 60 chars, lowercase)
         key = ''.join(c for c in title[:60] if c.isalnum() or c.isspace())
-        key = ' '.join(key.split())  # normalise whitespace
-
-        if key and key not in seen_titles and len(title) > 20:
+        if key and key not in seen_titles:
             seen_titles.add(key)
             unique.append(article)
-
     return unique
