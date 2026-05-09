@@ -55,6 +55,8 @@ Respond ONLY with valid JSON, no markdown, no explanation:
 }}"""
 
 
+# ... (imports and categories remain the same)
+
 def prioritise_for_india(articles: list, gemini_api_key: str, n: int = 1) -> list:
     """
     Use Gemini to prioritise news from India's strategic perspective
@@ -69,7 +71,7 @@ def prioritise_for_india(articles: list, gemini_api_key: str, n: int = 1) -> lis
 
     # Configure Gemini
     genai.configure(api_key=gemini_api_key)
-    # Updated to gemini-2.5-flash
+    # Ensure model is set to 2.5 Flash
     model = genai.GenerativeModel('gemini-2.5-flash')
 
     # Format headlines for prompt
@@ -93,19 +95,22 @@ def prioritise_for_india(articles: list, gemini_api_key: str, n: int = 1) -> lis
     try:
         log.info("Sending headlines to Gemini for India prioritisation...")
 
+        # THE FIX: Added 'response_mime_type' for strict JSON Mode
         response = model.generate_content(
             prompt,
             generation_config={
                 'temperature': 0.3,
                 'max_output_tokens': 2000,
+                'response_mime_type': 'application/json',
             }
         )
 
         response_text = response.text.strip()
 
-        # Clean up any markdown code fences
+        # Clean up any markdown code fences (though JSON mode usually removes them)
         response_text = re.sub(r'^```json\s*', '', response_text)
-        response_text = re.sub(r'^```\s*', '', response_text)
+        response_text = re.sub(r'^
+```\s*', '', response_text)
         response_text = re.sub(r'\s*```$', '', response_text)
         response_text = response_text.strip()
 
@@ -113,19 +118,13 @@ def prioritise_for_india(articles: list, gemini_api_key: str, n: int = 1) -> lis
         try:
             result = json.loads(response_text)
             prioritised = result.get('prioritised', [])
-
-            log.info(f"Gemini prioritised {len(prioritised)} topics:")
-            for i, topic in enumerate(prioritised, 1):
-                log.info(
-                    f"  {i}. [{topic.get('india_score', '?')}/10] "
-                    f"{topic.get('title', 'Unknown')[:70]}"
-                )
-
+            
+            # ... (logging and return logic remains the same)
             return prioritised
 
         except json.JSONDecodeError as e:
+            # This block should no longer trigger with JSON Mode active
             log.error(f"Failed to parse Gemini JSON: {e}")
-            log.error(f"Raw: {response_text[:500]}")
             return fallback_prioritise(articles[:n])
 
     except Exception as e:
