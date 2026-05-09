@@ -17,7 +17,6 @@ CATEGORIES = [
     'Cyber & Tech', 'Intelligence', 'Policy', 'Press Release'
 ]
 
-# Updated prompt to focus on "Dominant Narratives"
 PRIORITY_PROMPT = """You are a senior Indian defence analyst. 
 Today is May 9, 2026.
 
@@ -49,10 +48,8 @@ def get_trending_context(articles, top_n=10):
     """Zero-cost Python logic to find the most common daily topics."""
     text = " ".join([a.get('title', '') for a in articles]).lower()
     words = re.findall(r'\w+', text)
-    # Filter out generic stop words
-    stop_words = {'india', 'defence', 'military', 'news', 'latest', 'with', 'over', 'from', 'against'}
+    stop_words = {'india', 'defence', 'military', 'news', 'latest', 'with', 'over', 'from', 'against', 'says', 'after'}
     filtered = [w for w in words if w not in stop_words and len(w) > 3]
-    
     common = [word for word, count in Counter(filtered).most_common(top_n)]
     log.info(f"Top trending keywords identified: {', '.join(common)}")
     return common
@@ -61,17 +58,11 @@ def prioritise_for_india(articles: list, gemini_api_key: str, n: int = 1) -> lis
     if not articles:
         return []
 
-    # Step 1: Identify trending keywords without using API quota
+    # Identify trending keywords to focus on the 'most common' topics
     trending_keywords = get_trending_context(articles)
     
-    # Step 2: Pre-filter articles that contain these trending keywords
-    # This ensures we only send the 'most common' stories to Gemini
-    filtered_articles = []
-    for a in articles:
-        if any(kw in a.get('title', '').lower() for kw in trending_keywords[:5]):
-            filtered_articles.append(a)
-    
-    # Use filtered list or fallback to top of the stack if none found
+    # Filter to articles that match the trending narrative
+    filtered_articles = [a for a in articles if any(kw in a.get('title', '').lower() for kw in trending_keywords[:5])]
     target_articles = filtered_articles[:15] if filtered_articles else articles[:15]
 
     if not gemini_api_key:
@@ -88,21 +79,20 @@ def prioritise_for_india(articles: list, gemini_api_key: str, n: int = 1) -> lis
     prompt = PRIORITY_PROMPT.format(n=n, headlines=headlines_text)
 
     try:
-        log.info(f"Requesting prioritisation for the most common topics...")
+        log.info("Requesting prioritisation for the most common topics...")
         response = model.generate_content(
             prompt,
             generation_config={
-                'temperature': 0.2, # Lower temperature for more consistent JSON
+                'temperature': 0.2,
                 'max_output_tokens': 1000,
                 'response_mime_type': 'application/json',
             }
         )
 
+        # CLEANUP: These MUST remain on single lines to avoid SyntaxErrors
         response_text = response.text.strip()
-        # Single-line regex to avoid SyntaxErrors
         response_text = re.sub(r'^```json\s*', '', response_text)
-        response_text = re.sub(r'^
-```\s*', '', response_text)
+        response_text = re.sub(r'^```\s*', '', response_text)
         response_text = re.sub(r'\s*```$', '', response_text)
 
         result = json.loads(response_text)
@@ -114,7 +104,6 @@ def prioritise_for_india(articles: list, gemini_api_key: str, n: int = 1) -> lis
 
 def fallback_prioritise(articles: list) -> list:
     log.info("Using keyword fallback prioritisation")
-    # Simple score based on 'India' relevance
     for a in articles:
         a['_score'] = 10 if 'operation sindoor' in a.get('title', '').lower() else 5
     articles.sort(key=lambda x: x.get('_score', 0), reverse=True)
