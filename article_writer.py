@@ -76,7 +76,7 @@ def write_article(topic: dict, gemini_api_key: str) -> dict | None:
     # Configure Gemini
     genai.configure(api_key=gemini_api_key)
     model = genai.GenerativeModel(
-        model_name='gemini-1.5-flash',
+        model_name='gemini-2.5-flash',
         system_instruction=SYSTEM_INSTRUCTION
     )
 
