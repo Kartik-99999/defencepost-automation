@@ -54,9 +54,6 @@ Respond ONLY with valid JSON, no markdown, no explanation:
   ]
 }}"""
 
-
-# ... (imports and categories remain the same)
-
 def prioritise_for_india(articles: list, gemini_api_key: str, n: int = 1) -> list:
     """
     Use Gemini to prioritise news from India's strategic perspective
@@ -107,7 +104,8 @@ def prioritise_for_india(articles: list, gemini_api_key: str, n: int = 1) -> lis
 
         response_text = response.text.strip()
 
-        # Clean up any markdown code fences (though JSON mode usually removes them)
+        # CLEANUP: Fixed the SyntaxError by putting re.sub on single lines
+        # This removes any accidental markdown fences if the model ignores JSON mode
         response_text = re.sub(r'^```json\s*', '', response_text)
         response_text = re.sub(r'^
 ```\s*', '', response_text)
@@ -119,18 +117,17 @@ def prioritise_for_india(articles: list, gemini_api_key: str, n: int = 1) -> lis
             result = json.loads(response_text)
             prioritised = result.get('prioritised', [])
             
-            # ... (logging and return logic remains the same)
+            log.info(f"Gemini prioritised {len(prioritised)} topics.")
             return prioritised
 
         except json.JSONDecodeError as e:
-            # This block should no longer trigger with JSON Mode active
             log.error(f"Failed to parse Gemini JSON: {e}")
+            log.debug(f"Raw text: {response_text}")
             return fallback_prioritise(articles[:n])
 
     except Exception as e:
         log.error(f"Gemini API error: {e}")
         return fallback_prioritise(articles[:n])
-
 
 def fallback_prioritise(articles: list) -> list:
     """Keyword-based fallback if Gemini fails"""
