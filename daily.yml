@@ -1,0 +1,58 @@
+name: DefencePost — Daily AI Article Generator (FREE)
+
+on:
+  schedule:
+    # 6:00 AM IST every day = 00:30 UTC
+    - cron: '30 0 * * *'
+
+  # Manual trigger from GitHub UI
+  workflow_dispatch:
+    inputs:
+      articles:
+        description: 'Articles to generate'
+        required: false
+        default: '1'
+        type: choice
+        options: ['1', '2', '3']
+
+jobs:
+  generate-articles:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Wake up Render backend (free tier sleeps)
+        run: |
+          echo "Pinging backend to wake it up..."
+          curl -s --max-time 70 "${{ secrets.BACKEND_URL }}/health" || true
+          echo "Backend ping complete"
+
+      - name: Run automation
+        env:
+          GEMINI_API_KEY:    ${{ secrets.GEMINI_API_KEY }}
+          NEWSAPI_KEY:       ${{ secrets.NEWSAPI_KEY }}
+          BACKEND_URL:       ${{ secrets.BACKEND_URL }}
+          ADMIN_EMAIL:       ${{ secrets.ADMIN_EMAIL }}
+          ADMIN_PASSWORD:    ${{ secrets.ADMIN_PASSWORD }}
+          ARTICLES_PER_DAY:  ${{ github.event.inputs.articles || '1' }}
+        run: python main.py
+
+      - name: Success notification
+        if: success()
+        run: echo "✅ Published successfully at $(date '+%d %B %Y %H:%M UTC')"
+
+      - name: Failure notification
+        if: failure()
+        run: echo "❌ Automation failed — check logs"
