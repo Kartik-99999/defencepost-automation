@@ -92,7 +92,7 @@ def prioritise_for_india(articles: list, gemini_api_key: str, n: int = 1) -> lis
     try:
         log.info("Sending headlines to Gemini for India prioritisation...")
 
-        # THE FIX: Added 'response_mime_type' for strict JSON Mode
+        # Strict JSON Mode configuration
         response = model.generate_content(
             prompt,
             generation_config={
@@ -104,11 +104,9 @@ def prioritise_for_india(articles: list, gemini_api_key: str, n: int = 1) -> lis
 
         response_text = response.text.strip()
 
-        # CLEANUP: Fixed the SyntaxError by putting re.sub on single lines
-        # This removes any accidental markdown fences if the model ignores JSON mode
+        # CLEANUP: re.sub calls must be on single lines to avoid SyntaxErrors
         response_text = re.sub(r'^```json\s*', '', response_text)
-        response_text = re.sub(r'^
-```\s*', '', response_text)
+        response_text = re.sub(r'^```\s*', '', response_text)
         response_text = re.sub(r'\s*```$', '', response_text)
         response_text = response_text.strip()
 
@@ -116,13 +114,11 @@ def prioritise_for_india(articles: list, gemini_api_key: str, n: int = 1) -> lis
         try:
             result = json.loads(response_text)
             prioritised = result.get('prioritised', [])
-            
             log.info(f"Gemini prioritised {len(prioritised)} topics.")
             return prioritised
 
         except json.JSONDecodeError as e:
             log.error(f"Failed to parse Gemini JSON: {e}")
-            log.debug(f"Raw text: {response_text}")
             return fallback_prioritise(articles[:n])
 
     except Exception as e:
@@ -132,25 +128,17 @@ def prioritise_for_india(articles: list, gemini_api_key: str, n: int = 1) -> lis
 def fallback_prioritise(articles: list) -> list:
     """Keyword-based fallback if Gemini fails"""
     log.info("Using keyword fallback prioritisation")
-
-    india_kws = [
-        'india', 'indian', 'modi', 'iaf', 'drdo', 'hal', 'brahmos',
-        'tejas', 'pakistan', 'china', 'lac', 'kashmir', 'quad',
-        'indo-pacific', 'indian ocean', 'arihant', 'vikrant'
-    ]
-
+    india_kws = ['india', 'indian', 'modi', 'iaf', 'drdo', 'hal', 'brahmos', 'tejas', 'pakistan', 'china', 'lac']
     scored = []
     for a in articles:
         text = (a.get('title', '') + ' ' + a.get('description', '')).lower()
         score = sum(1 for kw in india_kws if kw in text)
         scored.append({**a, '_score': score})
-
     scored.sort(key=lambda x: x['_score'], reverse=True)
-
     return [{
         'title': a.get('title', 'Defence News Update'),
         'category': 'Military',
-        'keywords': a.get('keywords', ['India', 'Defence', 'Military'])[:5],
+        'keywords': ['India', 'Defence'],
         'india_relevance': a.get('description', '')[:200],
         'india_score': a.get('_score', 5),
         'original_headline': a.get('title', ''),
