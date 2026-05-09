@@ -62,7 +62,7 @@ Respond ONLY in this exact JSON format, no markdown fences, no extra text:
 
 def write_article(topic: dict, gemini_api_key: str) -> dict | None:
     """
-    Write full article using Gemini 1.5 Flash (free)
+    Write full article using Gemini 2.5 Flash (free)
     """
     if not gemini_api_key:
         log.error("No Gemini API key")
@@ -75,7 +75,7 @@ def write_article(topic: dict, gemini_api_key: str) -> dict | None:
     # Configure Gemini
     genai.configure(api_key=gemini_api_key)
     model = genai.GenerativeModel(
-        model_name='gemini-1.5-flash',
+        model_name='gemini-2.5-flash',
         system_instruction=SYSTEM_INSTRUCTION
     )
 
@@ -103,7 +103,8 @@ def write_article(topic: dict, gemini_api_key: str) -> dict | None:
 
         # Clean markdown fences if present
         response_text = re.sub(r'^```json\s*', '', response_text)
-        response_text = re.sub(r'^```\s*', '', response_text)
+        response_text = re.sub(r'^
+```\s*', '', response_text)
         response_text = re.sub(r'\s*```$', '', response_text)
         response_text = response_text.strip()
 
