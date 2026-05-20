@@ -109,7 +109,10 @@ def main():
 
         # STEP 5: Fetch cover image from Wikimedia
         log.info(f"\n[STEP 5] Finding cover image...")
-        cover_image = fetch_cover_image(topic.get('keywords', []))
+        cover_image = fetch_cover_image(
+            keywords=topic.get('keywords', []), 
+            headline=topic.get('title', '')
+        )
         if cover_image:
             article['coverImage'] = cover_image
             log.info(f"✅ Cover image found")
